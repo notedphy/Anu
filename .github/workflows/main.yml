@@ -8,16 +8,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Update packages
-        run: sudo apt update
-
       - name: Install tmate
-        run: sudo apt install tmate -y
-
-      - name: Start SSH Session
         run: |
-          echo "==============================="
-          echo " 🔌 Tmate SSH Session Started"
-          echo "==============================="
-          tmate -F -a
+          sudo apt-get update
+          sudo apt-get install -y tmate
+
+      - name: Start Tmate Session
+        run: |
+          echo "======================================"
+          echo " 🔌 Tmate SSH Session Started (FIXED) "
+          echo "======================================"
+          tmate -F
         timeout-minutes: 600
