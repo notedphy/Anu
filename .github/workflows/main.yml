@@ -1,22 +1,75 @@
-name: SSH 
+name: Custom Storage Workflow
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  debug:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
 
     steps:
-      - name: Install tmate
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install basic dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y tmate
+          sudo apt-get install -y rsync tar e2fsprogs sudo
 
-      - name: Start Tmate Session
+      - name: Create and mount custom 100GB storage (loop device)
         run: |
-          echo "======================================"
-          echo " 🔌 Tmate SSH Session Started (FIXED) "
-          echo "======================================"
-          tmate -F
-        timeout-minutes: 600
+          set -eux
+          # Try fallocate first (faster), fallback to dd if not available
+          if command -v fallocate >/dev/null 2>&1; then
+            sudo fallocate -l 100G /home/runner/storage.img
+          else
+            sudo dd if=/dev/zero of=/home/runner/storage.img bs=1M count=102400 status=progress
+          fi
+          sudo mkfs.ext4 -F /home/runner/storage.img
+          sudo mkdir -p /mnt/custom_storage
+          sudo mount -o loop /home/runner/storage.img /mnt/custom_storage
+          sudo chown -R $USER:$USER /mnt/custom_storage
+          df -h /mnt/custom_storage
+
+      - name: Copy workspace to custom storage
+        run: |
+          rsync -a --exclude='.git' ${{ github.workspace }}/ /mnt/custom_storage/
+          ls -lah /mnt/custom_storage | sed -n '1,200p'
+
+      - name: Start SSH Session (tmate)
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: false
+
+      - name: Example build step (run inside custom storage)
+        run: |
+          set -eux
+          cd /mnt/custom_storage
+          # Place your real build commands here. This is an example placeholder.
+          echo "Running build placeholder..."
+          mkdir -p out
+          echo "built-at: $(date -u)" > out/build.txt
+
+      - name: Archive custom storage output
+        run: |
+          cd /mnt/custom_storage
+          tar -czf /home/runner/custom_storage.tar.gz out || true
+          ls -lh /home/runner/custom_storage.tar.gz || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: custom-storage-archive
+          path: /home/runner/custom_storage.tar.gz
+
+      - name: Unmount and cleanup
+        if: always()
+        run: |
+          sudo umount /mnt/custom_storage || true
+          sudo rm -f /home/runner/storage.img || true
+          sudo rmdir /mnt/custom_storage || true
+          
