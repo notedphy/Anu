@@ -25,7 +25,7 @@ jobs:
           set -eux
           # Try fallocate first (faster), fallback to dd if not available
           if command -v fallocate >/dev/null 2>&1; then
-            sudo fallocate -l 100G /home/runner/storage.img
+            sudo fallocate -l 80G /home/runner/storage.img
           else
             sudo dd if=/dev/zero of=/home/runner/storage.img bs=1M count=102400 status=progress
           fi
