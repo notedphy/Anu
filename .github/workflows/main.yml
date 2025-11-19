@@ -1,0 +1,23 @@
+name: SSH 
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Update packages
+        run: sudo apt update
+
+      - name: Install tmate
+        run: sudo apt install tmate -y
+
+      - name: Start SSH Session
+        run: |
+          echo "==============================="
+          echo " 🔌 Tmate SSH Session Started"
+          echo "==============================="
+          tmate -F -a
+        timeout-minutes: 600
